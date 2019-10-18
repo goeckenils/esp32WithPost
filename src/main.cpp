@@ -3,6 +3,7 @@
 #include <ArduinoJson.h>
 #include <WiFi.h>
 #include <HTTPClient.h>
+#include <ESP32Ping.h>
 
 const char *ssid = "INCOQNITO-HEADQUARTER";
 const char *password = "G5iiv3J1";
@@ -42,6 +43,17 @@ void setup()
 
 void loop()
 {
+
+  Serial.println("-------------------");
+  IPAddress Ip (172,16,210,124);
+  bool ret = Ping.ping(Ip);
+
+  if(ret > 0) {
+    Serial.println("ip is available");
+  } else {
+    Serial.println("ip adress is not available");
+  }
+
   sensors.requestTemperatures();
   temp = sensors.getTempCByIndex(0);
 
@@ -110,5 +122,5 @@ void loop()
     Serial.println("Error in WiFi connection");
   }
 
-  delay(10000);
+  delay(3000);
 }
