@@ -1,8 +1,8 @@
 #include <DallasTemperature.h>
 #include <OneWire.h>
+#include <ArduinoJson.h>
 #include <WiFi.h>
 #include <HTTPClient.h>
-//#include <string.h>
 
 const char *ssid = "INCOQNITO-HEADQUARTER";
 const char *password = "G5iiv3J1";
@@ -49,6 +49,21 @@ void loop()
   Serial.print(temp, 1);
   Serial.println();
 
+  String ip = String(WiFi.localIP());
+
+  String databuf;
+
+  const size_t CAPACITY = JSON_OBJECT_SIZE(300);
+  StaticJsonDocument<CAPACITY> doc;
+
+  JsonObject object = doc.to<JsonObject>();
+  object["tempC"] = temp;
+  object["ip"] = ip;
+
+  serializeJson(doc, databuf);
+
+  Serial.println(databuf);
+
   if (temp < 30.0)
   {
     digitalWrite(GREEN, LOW);
@@ -67,10 +82,10 @@ void loop()
 
     HTTPClient http;
 
-    http.begin("http://jsonplaceholder.typicode.com/posts");
-    http.addHeader("Content-Type", "text/plain");
+    http.begin("http://172.16.210.124/api/POST");
+    http.addHeader("content-type", "application/json");
 
-    int httpResponseCode = http.POST(String(temp));
+    int httpResponseCode = http.POST(databuf);
 
     if (httpResponseCode > 0)
     {
