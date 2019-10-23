@@ -43,14 +43,18 @@ void setup()
 
 void loop()
 {
+  WiFi.mode(WIFI_MODE_STA);
 
   Serial.println("-------------------");
-  IPAddress Ip (172,16,210,124);
+  IPAddress Ip(172, 16, 210, 124);
   bool ret = Ping.ping(Ip);
 
-  if(ret > 0) {
+  if (ret > 0)
+  {
     Serial.println("ip is available");
-  } else {
+  }
+  else
+  {
     Serial.println("ip adress is not available");
   }
 
@@ -68,9 +72,12 @@ void loop()
   const size_t CAPACITY = JSON_OBJECT_SIZE(300);
   StaticJsonDocument<CAPACITY> doc;
 
+  String mac = String(WiFi.macAddress());
+
   JsonObject object = doc.to<JsonObject>();
   object["tempC"] = temp;
   object["ip"] = ip;
+  object["mac"] = mac;
 
   serializeJson(doc, databuf);
 
@@ -121,6 +128,6 @@ void loop()
 
     Serial.println("Error in WiFi connection");
   }
-
+  Serial.println(WiFi.macAddress());
   delay(3000);
 }
