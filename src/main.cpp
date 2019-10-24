@@ -1,16 +1,23 @@
+#include <Arduino.h>
 #include <DallasTemperature.h>
-#include <OneWire.h>
 #include <ArduinoJson.h>
 #include <WiFi.h>
+#include <WiFiMulti.h>
 #include <HTTPClient.h>
-#include <ESP32Ping.h>
+
+#define USE_SERIAL Serial
+#define BLUE 17
+#define RED 5
+#define GREEN 16
 
 const char *ssid = "INCOQNITO-HEADQUARTER";
 const char *password = "G5iiv3J1";
 
-#define BLUE 17
-#define RED 5
-#define GREEN 16
+WiFiMulti wifiMulti;
+OneWire oneWire(4); // pin D6
+DallasTemperature sensors(&oneWire);
+float temp;
+
 
 const char *root_ca =
     "-----BEGIN CERTIFICATE-----\n"
@@ -65,78 +72,48 @@ const char *root_ca =
     "5QI647alyLpIiln/4mYqxDDFr4kE5iY=\n"
     "-----END CERTIFICATE-----\n";
 
-OneWire oneWire(4); // pin D6
-DallasTemperature sensors(&oneWire);
-float temp;
 
 void setup()
 {
-  Serial.begin(115200);
-  delay(4000);
-  WiFi.begin(ssid, password);
-
-  while (WiFi.status() != WL_CONNECTED)
-  {
-    delay(1000);
-    Serial.println("Connecting to WiFi..");
-  }
-
-  Serial.println("Connected to the WiFi network");
-
-  Serial.println("DS18B20 thermometer");
-
+  USE_SERIAL.begin(115200);
   sensors.setResolution(12);
 
   pinMode(RED, OUTPUT);
   pinMode(GREEN, OUTPUT);
   pinMode(BLUE, OUTPUT);
-
   sensors.begin();
+
+
+
+  USE_SERIAL.println();
+  USE_SERIAL.println();
+  USE_SERIAL.println();
+
+  for (uint8_t t = 4; t > 0; t--)
+  {
+    USE_SERIAL.printf("[SETUP] WAIT %d...\n", t);
+    USE_SERIAL.flush();
+    delay(1000);
+  }
+
+  wifiMulti.addAP(ssid, password);
 }
 
 void loop()
 {
-  WiFi.mode(WIFI_MODE_STA);
 
   Serial.println("-------------------");
-  IPAddress Ip(172, 16, 210, 124);
-  bool ret = Ping.ping(Ip);
 
-  if (ret > 0)
-  {
-    Serial.println("ip is available");
-  }
-  else
-  {
-    Serial.println("ip adress is not available");
-  }
+  String databuf;
 
   sensors.requestTemperatures();
   temp = sensors.getTempCByIndex(0);
 
   Serial.print("Temp is ");
-  Serial.print(temp, 1);
+  Serial.print(temp);
   Serial.println();
 
-  String ip = String(WiFi.localIP());
-
-  String databuf;
-
-  const size_t CAPACITY = JSON_OBJECT_SIZE(300);
-  StaticJsonDocument<CAPACITY> doc;
-
-  String mac = String(WiFi.macAddress());
-
-  JsonObject object = doc.to<JsonObject>();
-  object["tempC"] = temp;
-  object["ip"] = ip;
-  object["mac"] = mac;
-
-  serializeJson(doc, databuf);
-
-  Serial.println(databuf);
-
-  if (temp < 30.0)
+   if (temp < 30.0)
   {
     digitalWrite(GREEN, LOW);
     digitalWrite(RED, HIGH);
@@ -149,38 +126,51 @@ void loop()
     digitalWrite(BLUE, HIGH);
   }
 
-  if (WiFi.status() == WL_CONNECTED)
+  String mac = String(WiFi.macAddress());
+  String ip = String(WiFi.localIP());
+
+  StaticJsonDocument<200> doc;
+  doc["tempC"] = temp;
+  doc["ip"] = ip;
+  doc["mac"] = mac;
+
+  serializeJson(doc, databuf);
+
+  Serial.println(databuf);
+  // wait for WiFi connection
+  if ((wifiMulti.run() == WL_CONNECTED))
   {
 
     HTTPClient http;
 
-    http.begin("https://esp32-iot.azurewebsites.net/temperature", root_ca);
+    USE_SERIAL.print("[HTTP] begin...\n");
+
+    http.begin("https://esp32-iot.azurewebsites.net/temperature");
+
     http.addHeader("content-type", "application/json");
+    USE_SERIAL.print("[HTTP] POST...\n");
+    int httpCode = http.POST(databuf);
 
-    int httpResponseCode = http.POST(databuf);
-
-    if (httpResponseCode > 0)
+    // httpCode will be negative on error
+    if (httpCode > 0)
     {
+      // HTTP header has been send and Server response header has been handled
+      USE_SERIAL.printf("[HTTP] GET... code: %d\n", httpCode);
 
-      String response = http.getString();
-
-      Serial.println(httpResponseCode);
-      Serial.println(response);
+      // file found at server
+      if (httpCode == HTTP_CODE_OK)
+      {
+        String payload = http.getString();
+        USE_SERIAL.println(payload);
+      }
     }
     else
     {
-
-      // Serial.print("Error on sending POST: ");
-      Serial.println(httpResponseCode);
+      USE_SERIAL.printf("[HTTP] GET... failed, error: %s\n", http.errorToString(httpCode).c_str());
     }
 
     http.end();
   }
-  else
-  {
 
-    Serial.println("Error in WiFi connection");
-  }
-  Serial.println(WiFi.macAddress());
-  delay(3000);
+  delay(5000);
 }
