@@ -14,7 +14,7 @@ const char *ssid = "INCOQNITO-HEADQUARTER";
 const char *password = "G5iiv3J1";
 
 WiFiMulti wifiMulti;
-OneWire oneWire(4); // pin D6
+OneWire oneWire(4);
 DallasTemperature sensors(&oneWire);
 float temp;
 
@@ -109,8 +109,8 @@ void loop()
   sensors.requestTemperatures();
   temp = sensors.getTempCByIndex(0);
 
-  Serial.print("Temp is ");
-  Serial.print(temp);
+  Serial.print("[TEMP] ");
+  Serial.print(temp, 1);
   Serial.println();
 
    if (temp < 30.0)
@@ -127,16 +127,18 @@ void loop()
   }
 
   String mac = String(WiFi.macAddress());
-  String ip = String(WiFi.localIP());
+ 
 
   StaticJsonDocument<200> doc;
   doc["tempC"] = temp;
-  doc["ip"] = ip;
+  doc["ip"] =  WiFi.localIP().toString();
   doc["mac"] = mac;
 
   serializeJson(doc, databuf);
 
-  Serial.println(databuf);
+  Serial.print("[JSON] ");
+  Serial.print(databuf);
+  Serial.println();
   // wait for WiFi connection
   if ((wifiMulti.run() == WL_CONNECTED))
   {
@@ -145,7 +147,7 @@ void loop()
 
     USE_SERIAL.print("[HTTP] begin...\n");
 
-    http.begin("https://esp32-iot.azurewebsites.net/temperature");
+    http.begin("https://esp32-iot.azurewebsites.net/api");
 
     http.addHeader("content-type", "application/json");
     USE_SERIAL.print("[HTTP] POST...\n");
@@ -155,22 +157,24 @@ void loop()
     if (httpCode > 0)
     {
       // HTTP header has been send and Server response header has been handled
-      USE_SERIAL.printf("[HTTP] GET... code: %d\n", httpCode);
+      USE_SERIAL.printf("[HTTP] POST... code: %d\n", httpCode);
 
       // file found at server
       if (httpCode == HTTP_CODE_OK)
       {
         String payload = http.getString();
-        USE_SERIAL.println(payload);
+        USE_SERIAL.print("[MSG] ");
+        USE_SERIAL.print(payload);
+        Serial.println();
       }
     }
     else
     {
-      USE_SERIAL.printf("[HTTP] GET... failed, error: %s\n", http.errorToString(httpCode).c_str());
+      USE_SERIAL.printf("[HTTP] POST... failed, error: %s\n", http.errorToString(httpCode).c_str());
     }
 
     http.end();
   }
 
-  delay(5000);
+  delay(60000);
 }
