@@ -1,25 +1,23 @@
 #include <DallasTemperature.h>
 #include <OneWire.h>
 #include <ArduinoJson.h>
-#include <WiFi.h>
-#include <HTTPClient.h>
-#include <ESP32Ping.h>
+#include "ESP8266WiFi.h"
+#include <ESP8266HTTPClient.h>
 
-const char *ssid = "INCOQNITO-HEADQUARTER";
-const char *password = "G5iiv3J1";
+const char *ssid = "DESKTOP-0GAOED8 9425"; //login WLAN
+const char *password = "W73303b{";          //login WLAN
 
-#define BLUE 17
-#define RED 5
-#define GREEN 16
+#define BLUE 0  //GPIO
+#define RED 5   //GPIO
+#define GREEN 4 //GPIO
 
-OneWire oneWire(4); // pin D6
+OneWire oneWire(2); // pin D4
 DallasTemperature sensors(&oneWire);
 float temp;
 
 void setup()
 {
-  Serial.begin(115200);
-  delay(4000);
+  Serial.begin(9600);
   WiFi.begin(ssid, password);
 
   while (WiFi.status() != WL_CONNECTED)
@@ -29,61 +27,41 @@ void setup()
   }
 
   Serial.println("Connected to the WiFi network");
-
   Serial.println("DS18B20 thermometer");
-
   sensors.setResolution(12);
+  sensors.begin();
 
   pinMode(RED, OUTPUT);
   pinMode(GREEN, OUTPUT);
   pinMode(BLUE, OUTPUT);
-
-  sensors.begin();
 }
 
 void loop()
 {
 
-  Serial.println("-------------------");
-  IPAddress Ip (172,16,210,124);
-  bool ret = Ping.ping(Ip);
-
-  if(ret > 0) {
-    Serial.println("ip is available");
-  } else {
-    Serial.println("ip adress is not available");
-  }
-
   sensors.requestTemperatures();
   temp = sensors.getTempCByIndex(0);
 
-  Serial.print("Temp is ");
-  Serial.print(temp, 1);
-  Serial.println();
-
-  String ip = String(WiFi.localIP());
-
   String databuf;
-
-  const size_t CAPACITY = JSON_OBJECT_SIZE(300);
-  StaticJsonDocument<CAPACITY> doc;
-
-  JsonObject object = doc.to<JsonObject>();
-  object["tempC"] = temp;
-  object["ip"] = ip;
-
+  StaticJsonDocument<200> doc;
+  doc["tempc"] = temp;
+  doc["ip"] = WiFi.localIP().toString();
+  doc["mac"] = WiFi.macAddress();
   serializeJson(doc, databuf);
-
   Serial.println(databuf);
 
-  if (temp < 30.0)
+  if (temp < 20.0)
   {
-    digitalWrite(GREEN, LOW);
+    digitalWrite(GREEN, HIGH);
     digitalWrite(RED, HIGH);
     digitalWrite(BLUE, LOW);
   }
-  else if (temp > 30.0)
+  else if (20.0 <= temp && temp <= 40.0)
   {
+    digitalWrite(RED, HIGH);
+    digitalWrite(GREEN, LOW);
+    digitalWrite(BLUE, HIGH);
+  } else {
     digitalWrite(RED, LOW);
     digitalWrite(GREEN, HIGH);
     digitalWrite(BLUE, HIGH);
@@ -91,25 +69,23 @@ void loop()
 
   if (WiFi.status() == WL_CONNECTED)
   {
-
-    HTTPClient http;
-
-    http.begin("http://172.16.210.124/api/POST");
+    HTTPClient http; 
+    //http.begin("https://esp32-iot.azurewebsites.net/temperature","39:8E:01:A5:0C:66:8A:74:F0:10:4A:83:60:15:A2:6E:21:55:4C:CE"); //ONLINE
+    http.begin("http://192.168.16.36:5000/temperature"); //LOCAL
     http.addHeader("content-type", "application/json");
-
     int httpResponseCode = http.POST(databuf);
 
     if (httpResponseCode > 0)
     {
-
-      String response = http.getString();
-
       Serial.println(httpResponseCode);
+    }
+    else if (httpResponseCode == 200) 
+    {
+      String response = http.getString();
       Serial.println(response);
     }
     else
     {
-
       Serial.print("Error on sending POST: ");
       Serial.println(httpResponseCode);
     }
@@ -118,9 +94,8 @@ void loop()
   }
   else
   {
-
     Serial.println("Error in WiFi connection");
   }
 
-  delay(3000);
+  delay(5000); //10 seconds delay
 }
