@@ -89,7 +89,7 @@ void loop()
 
     USE_SERIAL.print("[HTTP] begin...\n");
 
-    http.begin("http://172.16.210.124:8080/temperature");
+    http.begin("http://192.168.2.103:8080/temperature");
 
     http.addHeader("content-type", "application/json");
     USE_SERIAL.print("[HTTP] POST...\n");
