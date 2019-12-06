@@ -10,8 +10,8 @@
 #define RED 5
 #define GREEN 16
 
-const char *ssid = "Die Box";
-const char *password = "7E43B05B8";
+const char *ssid = "WIFI NAME";
+const char *password = "WIFI PASSWORD";
 
 WiFiMulti wifiMulti;
 OneWire oneWire(4);
